@@ -1,0 +1,78 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+env/
+smart_doc_env/
+pyenv/
+.python-version
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Database
+chroma_db/
+faiss_index/
+*.db
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Documents
+docs/
+*.pdf
+*.docx
+*.pptx
+*.xlsx
+*.txt
+
+# Uploads
+uploads/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints
+
+# ML model files
+models/
+*.bin
+*.pth
+*.pt
+*.h5
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+*.temp
+
+# System specific
+desktop.ini
+
+# Project specific
+*.exe
+*.dll
+*.pyd
