@@ -35,7 +35,7 @@ bash
 
 克隆项目
 
-git clone <repository-url>
+git clone <https://github.com/Raeyi/smart_doc>
 
 cd smart_doc
 
@@ -147,7 +147,7 @@ bash
 
 python main.py --mode web --port 8000
 
-然后在浏览器中访问：http://localhost:8000
+然后在浏览器中访问：[http://localhost:8000](http://localhost:8000)
 
 ## API接口
 
@@ -184,7 +184,6 @@ config.model.openai_api_key = "your-api-key"
 config.model.openai_model = "gpt-3.5-turbo"  # 或 "gpt-4"
 
 2. **Azure OpenAI**
-
 python
 
 config.model.llm_provider = "azure"

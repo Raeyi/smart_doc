@@ -7,13 +7,13 @@ __author__ = "SmartDoc Team"
 __description__ = "基于AI的企业文档管理和智能问答系统"
 
 # 导出主要类和函数
-from .main import SmartDocPlatform, main
-from .config import config
-from .src.document_loader import DocumentLoader, get_document_loader
-from .src.vector_store import VectorStoreManager, get_vector_store_manager
-from .src.retriever import SmartRetriever, get_retriever
-from .src.qa_chain import DocumentQA, get_qa_system
-from .src.utils import setup_logger, logger
+from ..main import SmartDocPlatform, main
+from ..config import config
+from .document_loader import DocumentLoader, get_document_loader
+from .vector_store import VectorStoreManager, get_vector_store_manager
+from .retriever import SmartRetriever, get_retriever
+from .qa_chain import DocumentQA, get_qa_system
+from .utils import setup_logger, logger
 
 __all__ = [
     "SmartDocPlatform",
