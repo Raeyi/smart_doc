@@ -12,14 +12,17 @@ from langchain.memory import ConversationBufferMemory
 import logging
 
 from .utils import logger, timer
-from .retriever import SmartRetriever
+from .retriever import SmartRetriever, get_retriever
 
 class DocumentQA:
     """文档问答系统"""
     
     def __init__(self, config=None, llm=None, retriever=None):
         """初始化问答系统"""
-        from ..config import config as default_config
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from config import config as default_config
         
         self.config = config or default_config
         self.llm = llm

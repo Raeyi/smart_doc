@@ -42,26 +42,31 @@ class DocumentConfig:
 class ModelConfig:
     """模型配置"""
     # 嵌入模型配置
-    embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-    embedding_device: str = "cpu"  # 或 "cuda"
+    embedding_provider: str = "huggingface"  # 嵌入模型提供商
+    embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"  # 嵌入模型名称
+    embedding_device: str = "cpu"  # 设备类型: "cpu" 或 "cuda"
     
     # LLM配置（可切换不同模型）
-    llm_provider: str = "openai"  # 可选: "openai", "azure", "anthropic", "local"
+    llm_provider: str = "deepseek"  # 可选: "openai", "azure", "anthropic", "local"
+    llm_model: str = "deepseek-chat"  # DeepSeek模型名称
     
     # OpenAI配置
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-3.5-turbo"
     openai_temperature: float = 0.1
     
+     # DeepSeek配置
+    deepseek_api_key: Optional[str] = None
+    deepseek_base_url: str = "https://api.deepseek.com"
+    
     # 本地模型配置
     local_model_path: Optional[str] = None
     local_model_type: str = "llama"  # 可选: "llama", "chatglm", "qwen"
     
     # 模型参数
+    temperature: float = 0.1
     max_tokens: int = 2000
     top_p: float = 0.9
-    frequency_penalty: float = 0.0
-    presence_penalty: float = 0.0
 
 @dataclass
 class VectorStoreConfig:
@@ -148,12 +153,20 @@ class Config:
         
         load_dotenv()  # 加载.env文件
         
-        # 从环境变量更新配置
-        if os.getenv("OPENAI_API_KEY"):
-            self.model.openai_api_key = os.getenv("OPENAI_API_KEY")
+        # DeepSeek配置
+        if os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY"):
+            # 优先使用DEEPSEEK_API_KEY，其次使用OPENAI_API_KEY
+            self.model.deepseek_api_key = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
         
+        if os.getenv("OPENAI_BASE_URL"):
+            self.model.deepseek_base_url = os.getenv("OPENAI_BASE_URL")
+        
+        # 嵌入模型配置
         if os.getenv("EMBEDDING_MODEL"):
             self.model.embedding_model = os.getenv("EMBEDDING_MODEL")
+        
+        if os.getenv("EMBEDDING_PROVIDER"):
+            self.model.embedding_provider = os.getenv("EMBEDDING_PROVIDER")
         
         if os.getenv("DEBUG"):
             self.app.debug = os.getenv("DEBUG").lower() == "true"

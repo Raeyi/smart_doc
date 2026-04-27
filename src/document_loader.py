@@ -6,8 +6,8 @@ import os
 import glob
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple, Union
-from langchain.schema import Document
-from langchain.text_splitter import TextSplitter
+from langchain_core.documents import Document
+from langchain_text_splitters import TextSplitter
 import logging
 
 from .utils import logger, is_supported_document, extract_document_metadata, timer
@@ -17,7 +17,10 @@ class DocumentLoader:
     
     def __init__(self, config=None):
         """初始化文档加载器"""
-        from ..config import config as default_config
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from config import config as default_config
         
         self.config = config or default_config
         self.supported_extensions = self.config.document.supported_extensions

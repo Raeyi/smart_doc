@@ -3,11 +3,11 @@
 """
 
 from typing import List, Dict, Any, Optional, Tuple
-from langchain.schema import Document
+from langchain_core.documents import Document
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain.retrievers.ensemble import EnsembleRetriever
-from langchain.retrievers import BM25Retriever
+from langchain_community.retrievers import BM25Retriever
 import numpy as np
 import logging
 
@@ -19,7 +19,10 @@ class SmartRetriever:
     
     def __init__(self, config=None, llm=None):
         """初始化检索器"""
-        from ..config import config as default_config
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from config import config as default_config
         
         self.config = config or default_config
         self.llm = llm

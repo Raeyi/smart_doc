@@ -5,19 +5,22 @@
 import os
 import shutil
 from typing import List, Dict, Any, Optional, Tuple, Union
-from langchain.schema import Document
+from langchain_core.documents import Document
 from langchain.embeddings.base import Embeddings
 import logging
 
 from .utils import logger, timer, handle_exceptions
-from .document_loader import DocumentLoader
+from .document_loader import DocumentLoader, get_document_loader
 
 class VectorStoreManager:
     """向量存储管理器"""
     
     def __init__(self, config=None):
         """初始化向量存储管理器"""
-        from ..config import config as default_config
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from config import config as default_config
         
         self.config = config or default_config
         self.embedding_model = None

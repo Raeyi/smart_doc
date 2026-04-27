@@ -37,7 +37,7 @@ def create_app(platform=None):
     if platform is None:
         from smart_doc import SmartDocPlatform
         platform = SmartDocPlatform()
-        platform.init_components(init_llm=True)
+        platform.init_components(need_init_llm=True)
     
     # API路由
     @app.get("/", response_class=HTMLResponse)

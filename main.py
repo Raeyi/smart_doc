@@ -6,7 +6,7 @@ import os
 import sys
 import argparse
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import json
 from datetime import datetime
 
@@ -77,7 +77,20 @@ def init_llm(config):
                 
             else:
                 raise ValueError(f"不支持的本地模型类型: {config.model.local_model_type}")
-                
+        elif config.model.llm_provider == "deepseek":
+            from langchain_openai import ChatOpenAI
+            
+            if not config.model.deepseek_api_key:
+                raise ValueError("DeepSeek API Key未配置")
+            
+            llm = ChatOpenAI(
+                model=config.model.llm_model,
+                temperature=config.model.temperature,
+                max_tokens=config.model.max_tokens,
+                openai_api_key=config.model.deepseek_api_key,
+                openai_api_base=config.model.deepseek_base_url
+            )
+            logger.info(f"使用DeepSeek模型: {config.model.llm_model}, 地址: {config.model.deepseek_base_url}")
         else:
             raise ValueError(f"不支持的LLM提供商: {config.model.llm_provider}")
         
@@ -104,8 +117,7 @@ class SmartDocPlatform:
         # 从环境变量加载配置
         config.load_env_variables()
         
-        # 设置日志
-        global logger
+        # 重新设置日志
         logger = setup_logger("smart_doc", config.app.log_file, config.app.log_level)
         
         self.config = config
@@ -117,7 +129,7 @@ class SmartDocPlatform:
         
         logger.info(f"初始化 {config.app.app_name} v{config.app.version}")
     
-    def init_components(self, init_llm: bool = True):
+    def init_components(self, need_init_llm: bool = True):
         """初始化所有组件"""
         logger.info("初始化组件...")
         
@@ -131,7 +143,7 @@ class SmartDocPlatform:
         logger.info("向量存储初始化完成")
         
         # 3. 初始化LLM（可选）
-        if init_llm:
+        if need_init_llm:
             self.llm = init_llm(self.config)
             if self.llm:
                 logger.info("LLM初始化完成")
@@ -292,8 +304,6 @@ class SmartDocPlatform:
                     "version": self.config.app.version
                 },
                 "vector_store": vector_stats,
-                "llm_available": self.llm is not None,
-                "llm_provider": self,
                 "llm_available": self.llm is not None,
                 "llm_provider": self.config.model.llm_provider if self.llm else None,
                 "timestamp": datetime.now().isoformat()
@@ -522,6 +532,9 @@ class SmartDocPlatform:
 
 def main():
     """主函数"""
+    # 声明全局logger
+    global logger
+    
     parser = argparse.ArgumentParser(description=f"{config.app.app_name} - 企业文档智能平台")
     parser.add_argument("--config", "-c", help="配置文件路径")
     parser.add_argument("--mode", "-m", choices=["cli", "web", "ingest", "search", "ask", "interactive"], 
@@ -550,7 +563,7 @@ def main():
     platform = SmartDocPlatform(args.config)
     
     # 初始化组件
-    platform.init_components(init_llm=True)
+    platform.init_components(need_init_llm=True)
     
     # 根据模式执行相应操作
     if args.clear:
@@ -589,10 +602,17 @@ def main():
     
     elif args.mode == "web":
         # 启动Web服务器
-        from web.app import create_app
-        app = create_app(platform)
-        import uvicorn
-        uvicorn.run(app, host=args.host, port=args.port)
+        try:
+            from web.app import create_app
+            app = create_app(platform)
+            import uvicorn
+            
+            logger.info(f"启动Web服务器: http://{args.host}:{args.port}")
+            uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+        except ImportError as e:
+            logger.error(f"导入Web模块失败: {e}")
+            print("Web功能不可用，请先安装fastapi和uvicorn:")
+            print("pip install fastapi uvicorn")
     
     elif args.mode == "cli" or args.mode == "interactive":
         platform.interactive_mode()
