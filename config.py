@@ -3,6 +3,7 @@
 """
 
 import os
+from dotenv import load_dotenv
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -148,8 +149,6 @@ class Config:
     
     def load_env_variables(self):
         """从环境变量加载配置"""
-        import os
-        from dotenv import load_dotenv
         
         load_dotenv()  # 加载.env文件
         
@@ -157,9 +156,14 @@ class Config:
         if os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY"):
             # 优先使用DEEPSEEK_API_KEY，其次使用OPENAI_API_KEY
             self.model.deepseek_api_key = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
+            # 同时设置openai_api_key，用于兼容main.py中的检查
+            self.model.openai_api_key = self.model.deepseek_api_key
         
         if os.getenv("OPENAI_BASE_URL"):
             self.model.deepseek_base_url = os.getenv("OPENAI_BASE_URL")
+    
+        if os.getenv("DEEPSEEK_MODEL"):
+            self.model.llm_model = os.getenv("DEEPSEEK_MODEL")
         
         # 嵌入模型配置
         if os.getenv("EMBEDDING_MODEL"):
@@ -170,6 +174,9 @@ class Config:
         
         if os.getenv("DEBUG"):
             self.app.debug = os.getenv("DEBUG").lower() == "true"
+        
+        if os.getenv("DOCS_DIR"):
+            self.document.docs_dir = os.getenv("DOCS_DIR")
 
 # 全局配置实例
 config = Config()

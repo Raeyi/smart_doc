@@ -38,6 +38,41 @@ def init_llm(config):
             )
             logger.info(f"使用OpenAI模型: {config.model.openai_model}")
             
+        elif config.model.llm_provider == "deepseek":
+            from langchain_openai import ChatOpenAI
+            
+            if not config.model.deepseek_api_key:
+                raise ValueError("DeepSeek API Key未配置")
+            
+            llm_model = config.model.llm_model if hasattr(config.model, 'llm_model') else "deepseek-chat"
+            
+            # 修复：不传递proxies参数，使用基础初始化
+            llm_kwargs = {
+                "model": llm_model,
+                "temperature": config.model.temperature,
+                "max_tokens": config.model.max_tokens,
+                "openai_api_key": config.model.deepseek_api_key,
+                "openai_api_base": config.model.deepseek_base_url,
+            }
+            
+            # 尝试初始化，捕获可能的参数错误
+            try:
+                llm = ChatOpenAI(**llm_kwargs)
+            except TypeError as e:
+                if "unexpected keyword argument 'proxies'" in str(e):
+                    # 如果是因为proxies参数，尝试不传递任何额外参数
+                    logger.warning("检测到proxies参数问题，使用简化初始化")
+                    llm = ChatOpenAI(
+                        model=llm_model,
+                        temperature=config.model.temperature,
+                        openai_api_key=config.model.deepseek_api_key,
+                        openai_api_base=config.model.deepseek_base_url,
+                    )
+                else:
+                    raise
+            
+            logger.info(f"使用DeepSeek模型: {llm_model}, 地址: {config.model.deepseek_base_url}")
+            
         elif config.model.llm_provider == "azure":
             from langchain_openai import AzureChatOpenAI
             
@@ -77,20 +112,7 @@ def init_llm(config):
                 
             else:
                 raise ValueError(f"不支持的本地模型类型: {config.model.local_model_type}")
-        elif config.model.llm_provider == "deepseek":
-            from langchain_openai import ChatOpenAI
-            
-            if not config.model.deepseek_api_key:
-                raise ValueError("DeepSeek API Key未配置")
-            
-            llm = ChatOpenAI(
-                model=config.model.llm_model,
-                temperature=config.model.temperature,
-                max_tokens=config.model.max_tokens,
-                openai_api_key=config.model.deepseek_api_key,
-                openai_api_base=config.model.deepseek_base_url
-            )
-            logger.info(f"使用DeepSeek模型: {config.model.llm_model}, 地址: {config.model.deepseek_base_url}")
+                
         else:
             raise ValueError(f"不支持的LLM提供商: {config.model.llm_provider}")
         
@@ -106,6 +128,7 @@ class SmartDocPlatform:
     
     def __init__(self, config_path: str = None):
         """初始化平台"""
+        global logger
         # 加载配置
         if config_path and os.path.exists(config_path):
             import yaml
@@ -118,6 +141,7 @@ class SmartDocPlatform:
         config.load_env_variables()
         
         # 重新设置日志
+        # global logger
         logger = setup_logger("smart_doc", config.app.log_file, config.app.log_level)
         
         self.config = config

@@ -10,7 +10,7 @@ from langchain_core.documents import Document
 from langchain_text_splitters import TextSplitter
 import logging
 
-from .utils import logger, is_supported_document, extract_document_metadata, timer
+from .utils import logger, is_supported_document, extract_document_metadata, timer, calculate_text_md5
 
 class DocumentLoader:
     """文档加载器"""
@@ -18,7 +18,6 @@ class DocumentLoader:
     def __init__(self, config=None):
         """初始化文档加载器"""
         import sys
-        import os
         sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from config import config as default_config
         
@@ -122,7 +121,6 @@ class DocumentLoader:
                 doc.metadata.update(file_metadata)
                 
                 # 添加内容哈希
-                from ..utils import calculate_text_md5
                 doc.metadata['content_hash'] = calculate_text_md5(doc.page_content)
             
             logger.info(f"成功加载文档: {file_path}, 共 {len(documents)} 页")

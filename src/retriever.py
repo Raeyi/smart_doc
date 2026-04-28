@@ -127,19 +127,33 @@ class SmartRetriever:
     
     @timer
     def retrieve(self, query: str, 
-                 retriever_type: str = "vector",
+                 retriever_type: str = "auto",
                  k: int = None) -> List[Document]:
         """检索文档
         
         Args:
             query: 查询文本
-            retriever_type: 检索器类型，可选: "vector", "bm25", "ensemble", "compression"
+            retriever_type: 检索器类型，可选: "auto", "vector", "bm25", "ensemble", "compression", "hybrid"
+                           默认为 "auto"，将根据情况自动选择最佳策略。
             k: 返回结果数量
             
         Returns:
             检索到的文档列表
         """
         k = k or self.config.vector_store.k
+
+         # 自动类型选择逻辑
+        if retriever_type == "auto":
+            # 判断依据：如果使用的是回退模型（通过类名简单判断），则使用混合检索
+            embedding_model = self.vector_store_manager.embedding_model
+            if embedding_model and hasattr(embedding_model, '__class__'):
+                if '_KeywordAwareEmbeddings' in embedding_model.__class__.__name__ or 'SimpleEmbeddings' in embedding_model.__class__.__name__:
+                    logger.info("检测到使用回退嵌入模型，自动启用混合检索(hybrid)以提升效果。")
+                    retriever_type = "hybrid"
+                else:
+                    retriever_type = "vector"  # 使用有效的远程模型，用纯向量检索
+            else:
+                retriever_type = "vector"  # 默认回退
         
         try:
             if retriever_type == "vector":
@@ -149,10 +163,24 @@ class SmartRetriever:
                 
             elif retriever_type == "bm25":
                 if not self.bm25_retriever:
-                    # 需要先初始化BM25检索器
-                    logger.warning("BM25检索器未初始化，使用向量检索")
-                    return self.retriever.get_relevant_documents(query)
-                results = self.bm25_retriever.get_relevant_documents(query)
+                    logger.warning("BM25检索器未初始化，正在尝试从向量库获取文档进行初始化...")
+                    # 尝试从现有向量存储中获取文档来初始化BM25
+                    all_docs = self.vector_store_manager.vector_store.get() # 注意：此API可能因版本而异
+                    if all_docs and 'documents' in all_docs:
+                        from langchain_core.documents import Document
+                        dummy_docs = [Document(page_content=doc, metadata={}) for doc in all_docs.get('documents', [])]
+                        self.init_bm25_retriever(dummy_docs[:50]) # 避免太多文档
+                    else:
+                        logger.warning("无法获取文档初始化BM25，使用向量检索。")
+                        return self.retrieve(query, "vector", k)
+                if self.bm25_retriever:
+                    results = self.bm25_retriever.get_relevant_documents(query)
+                else:
+                    results = []
+
+            elif retriever_type == "hybrid":
+                # 直接调用混合检索方法
+                return self.hybrid_retrieve(query, k=k)
                 
             elif retriever_type == "ensemble":
                 # 创建临时集成检索器
@@ -179,8 +207,14 @@ class SmartRetriever:
             else:
                 raise ValueError(f"不支持的检索器类型: {retriever_type}")
             
-            logger.info(f"检索完成: 查询='{query[:50]}...', 类型={retriever_type}, 结果数={len(results)}")
-            return results[:k]  # 确保不超过k个结果
+            # 对非hybrid的结果进行关键词相关性过滤 (增强)
+            if retriever_type in ['vector', 'bm25']:
+                filtered_results = self._filter_by_keyword_relevance(query, results)
+                logger.info(f"检索完成: 查询='{query[:50]}...', 类型={retriever_type}, 原始结果={len(results)}, 过滤后={len(filtered_results)}")
+                return filtered_results[:k]
+            else:
+                logger.info(f"检索完成: 查询='{query[:50]}...', 类型={retriever_type}, 结果数={len(results)}")
+                return results[:k]
             
         except Exception as e:
             logger.error(f"检索失败: {e}")
@@ -296,6 +330,38 @@ class SmartRetriever:
         else:
             logger.warning(f"不支持的reranker类型: {reranker_type}")
             return documents
+        
+    def _filter_by_keyword_relevance(self, query: str, documents: List[Document], threshold: float = 0.1) -> List[Document]:
+        """根据查询关键词匹配度对文档进行简单打分和过滤"""
+        if not documents:
+            return documents
+        
+        query_terms = set(term.lower() for term in query.split() if len(term) > 1)  # 忽略单字符词
+        
+        scored_docs = []
+        for doc in documents:
+            content = doc.page_content.lower()
+            score = 0.0
+            # 计算匹配的关键词数量（简单版）
+            for term in query_terms:
+                if term in content:
+                    score += 1.0
+            # 稍微考虑一下术语频率（非常简化）
+            # score += 0.01 * sum(content.count(term) for term in query_terms)
+            if score > 0:
+                # 归一化得分
+                normalized_score = score / len(query_terms) if query_terms else 0
+                scored_docs.append((normalized_score, doc))
+        
+        # 如果没有匹配到任何关键词，返回原始结果
+        if not scored_docs:
+            return documents
+        
+        # 按分数降序排序
+        scored_docs.sort(key=lambda x: x[0], reverse=True)
+        # 返回分数超过阈值的结果，或至少前几个
+        filtered = [doc for score, doc in scored_docs if score >= threshold]
+        return filtered if filtered else [doc for score, doc in scored_docs[:3]]
 
 # 单例模式
 _retriever_instance = None
